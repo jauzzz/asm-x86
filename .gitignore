@@ -1,0 +1,7 @@
+*.bin
+*.vhd
+*.lst
+*.img
+*.swp
+
+.DS_Store
