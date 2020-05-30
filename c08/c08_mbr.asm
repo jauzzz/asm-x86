@@ -9,7 +9,7 @@
 SECTION mbr align=16 vstart=0x7c00                                     
 
          ;设置堆栈段和栈指针 
-         mov ax,0      
+         mov ax,0
          mov ss,ax
          mov sp,ax
       
