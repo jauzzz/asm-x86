@@ -2,5 +2,5 @@ ASMFILE=c06_mbr.asm
 
 all:$(ASMFILE)
 	nasm -f bin $(ASMFILE) -o mbr.bin
-	-rm myfile.vhd
-	VBoxManage convertfromraw mbr.bin myfile.vhd --format VHD --variant Fixed
+	-rm c6.vhd
+	VBoxManage convertfromraw mbr.bin c6.vhd --format VHD --variant Fixed

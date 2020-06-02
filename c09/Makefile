@@ -5,17 +5,17 @@ help: ## Display this help message
 c1:c09_mbr.asm
 	nasm -f bin c09_mbr.asm -o c09_mbr.bin
 	nasm -f bin c09_1.asm -o c09_1.bin
-	-rm myfile1.vhd
+	-rm c91.vhd
 	dd if=/dev/zero of=mbr.img count=10000
 	dd if=c09_mbr.bin of=mbr.img conv=notrunc
 	dd if=c09_1.bin of=mbr.img seek=100  conv=notrunc
-	VBoxManage convertfromraw mbr.img myfile1.vhd --format VHD
+	VBoxManage convertfromraw mbr.img c91.vhd --format VHD
 
 c2:c09_mbr.asm
 	nasm -f bin c09_mbr.asm -o c09_mbr.bin
 	nasm -f bin c09_2.asm -o c09_2.bin
-	-rm myfile2.vhd
+	-rm c92.vhd
 	dd if=/dev/zero of=mbr.img count=10000
 	dd if=c09_mbr.bin of=mbr.img conv=notrunc
 	dd if=c09_2.bin of=mbr.img seek=100  conv=notrunc
-	VBoxManage convertfromraw mbr.img myfile2.vhd --format VHD
+	VBoxManage convertfromraw mbr.img c92.vhd --format VHD
