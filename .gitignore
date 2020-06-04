@@ -5,3 +5,6 @@
 *.swp
 
 .DS_Store
+
+bochsout.txt
+bochsrc.txt
