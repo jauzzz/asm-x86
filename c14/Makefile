@@ -1,6 +1,6 @@
 all:c13_mbr.asm
 	nasm -f bin c13_mbr.asm -o mbr.bin
-	nasm -f bin c14_core.asm -o core.bin
+	nasm -f bin core.asm -o core.bin
 	nasm -f bin c13.asm -o c13.bin
 	-rm c14.vhd
 	dd if=/dev/zero of=mbr.img count=10000
