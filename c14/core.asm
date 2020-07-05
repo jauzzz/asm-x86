@@ -36,9 +36,8 @@ header_end:
 ;===============================================================================
 SECTION sys_routine vstart=0                ;系统公共例程代码段 
 ;-------------------------------------------------------------------------------
-put_string:
-        ; 字符串显示例程: 显示以0结尾的字符串
-        ; 参数: DS:EBX = 字符串起始地址
+put_string:                                 ; 字符串显示例程: 显示以0结尾的字符串
+                                            ; 参数: DS:EBX = 字符串起始地址
 
         push ecx
         push es
@@ -62,10 +61,10 @@ put_string:
         retf
 
 ;-------------------------------------------------------------------------------
-put_char:
-        ; 显示当前字符串并推进字符
-        ; 参数：cl = 字符串
-        ;      ebx = 当前字符串索引
+put_char:                                   ; 显示当前字符串并推进字符
+                                            ; 参数：cl = 字符串
+                                            ;      ebx = 当前字符串索引
+                                            ;      es = 显示缓冲区
 
         push edx
         push eax
@@ -180,6 +179,111 @@ put_char:
 
         ret
 
+;-------------------------------------------------------------------------------
+read_hard_disk_0:                           ; 从硬盘读取一个逻辑扇区
+                                            ;EAX=逻辑扇区号
+                                            ;DS:EBX=目标缓冲区地址
+                                            ;返回：EBX=EBX+512
+         push eax 
+         push ecx
+         push edx
+      
+         push eax
+         
+         mov dx,0x1f2
+         mov al,1
+         out dx,al                          ;读取的扇区数
+
+         inc dx                             ;0x1f3
+         pop eax
+         out dx,al                          ;LBA地址7~0
+
+         inc dx                             ;0x1f4
+         mov cl,8
+         shr eax,cl
+         out dx,al                          ;LBA地址15~8
+
+         inc dx                             ;0x1f5
+         shr eax,cl
+         out dx,al                          ;LBA地址23~16
+
+         inc dx                             ;0x1f6
+         shr eax,cl
+         or al,0xe0                         ;第一硬盘  LBA地址27~24
+         out dx,al
+
+         inc dx                             ;0x1f7
+         mov al,0x20                        ;读命令
+         out dx,al
+
+  .waits:
+         in al,dx
+         and al,0x88
+         cmp al,0x08
+         jnz .waits                         ;不忙，且硬盘已准备好数据传输 
+
+         mov ecx,256                        ;总共要读取的字数
+         mov dx,0x1f0
+  .readw:
+         in ax,dx
+         mov [ebx],ax
+         add ebx,2
+         loop .readw
+
+         pop edx
+         pop ecx
+         pop eax
+      
+         retf                               ;段间返回 
+
+;-------------------------------------------------------------------------------
+put_hex_dword:                              ; 打印一个双字
+                                            ; 参数: edx=要打印的双字
+
+        ;双字，32位，分别转换为字符串，显示
+        pushad
+        push ds
+
+        ; 切换到核心数据段 
+        mov ax, core_data_seg_sel
+        mov ds, ax
+        mov ecx, video_ram_seg_sel
+        mov es, ecx
+    
+        ; 打印开始提示语
+        mov ebx, debug_msg
+        call sys_routine_seg_sel:put_string
+        mov ebx, debug_prompt
+        call sys_routine_seg_sel:put_string
+
+        ; 指向核心数据段内的转换表
+        mov ebx,bin_hex
+        mov ecx,8
+    
+    .xlt:    
+        rol edx,4
+        mov eax,edx
+        and eax,0x0000000f
+        xlat
+    
+        push ecx
+        mov cl,al
+        call put_char
+        pop ecx
+    
+        loop .xlt
+    
+        ; 打印完成提示语
+        mov ebx, debug_msg
+        call sys_routine_seg_sel:put_string
+        mov ebx, new_line
+        call sys_routine_seg_sel:put_string
+
+        pop ds
+        popad
+        retf
+
+;-------------------------------------------------------------------------------
 sys_routine_end:
 
 ;===============================================================================
@@ -191,55 +295,100 @@ SECTION core_data vstart=0                  ;系统核心的数据段
                         db  'core is loaded,and the video display '
                         db  'routine works perfectly.',0x0d,0x0a,0
         message_5       db  '  Loading user program...',0
+        load_finish     db  'Done.',0x0d,0x0a,0
+
+        ;内核用的缓冲区
+        core_buf   times 2048 db 0
 
         cpu_brnd0       db 0x0d,0x0a,'  ',0
         cpu_brand  times 52 db 0
         cpu_brnd1       db 0x0d,0x0a,0x0d,0x0a,0
+
+        debug_msg       db 0x0d,0x0a,'  ------------',0
+        debug_prompt    db 0x0d,0x0a,'  EDX=',0
+        new_line        db 0x0d,0x0a,'  ',0
+        bin_hex         db '0123456789ABCDEF'
 
 core_data_end:
 
 ;===============================================================================
 SECTION core_code vstart=0
 ;-------------------------------------------------------------------------------
+load_relocate_program:
+        ; 加载并执行用户程序
+        ; 参数: esi=用户程序扇区号
+
+        ; 我们看到，缺乏了参数，加载目的内存地址
+        ; 加载目的内存地址，现在由内核分配可用的内存地址
+        ; 但是内核分配内存，需要参数，分配的内存总长度
+        ; 这个值，也就是用户程序长度，在用户程序头部里
+        ; 意味着，我们需要先加载用户程序的第一个扇区
+        ; 因此，我们在内核建立一个缓冲区
+
+        push eax
+        push ebx
+        push edx
+
+        mov eax, esi
+        mov ebx, core_buf
+        call sys_routine_seg_sel:read_hard_disk_0
+
+        ; 现在打印一下用户程序的总长度(一个双字)
+        mov edx, [core_buf]
+        call sys_routine_seg_sel:put_hex_dword
+
+        pop edx
+        pop ebx
+        pop eax
+
+        ret
+
 start:
         ;使ds指向核心数据段
-        mov ecx,core_data_seg_sel           
-        mov ds,ecx
+        mov ecx, core_data_seg_sel           
+        mov ds, ecx
 
-        mov ebx,message_1
+        mov ebx, message_1
         call sys_routine_seg_sel:put_string
 
         ;显示处理器品牌信息 
         mov eax,0x80000002
         cpuid
-        mov [cpu_brand + 0x00],eax
-        mov [cpu_brand + 0x04],ebx
-        mov [cpu_brand + 0x08],ecx
-        mov [cpu_brand + 0x0c],edx
+        mov [cpu_brand + 0x00], eax
+        mov [cpu_brand + 0x04], ebx
+        mov [cpu_brand + 0x08], ecx
+        mov [cpu_brand + 0x0c], edx
     
         mov eax,0x80000003
         cpuid
-        mov [cpu_brand + 0x10],eax
-        mov [cpu_brand + 0x14],ebx
-        mov [cpu_brand + 0x18],ecx
-        mov [cpu_brand + 0x1c],edx
+        mov [cpu_brand + 0x10], eax
+        mov [cpu_brand + 0x14], ebx
+        mov [cpu_brand + 0x18], ecx
+        mov [cpu_brand + 0x1c], edx
 
         mov eax,0x80000004
         cpuid
-        mov [cpu_brand + 0x20],eax
-        mov [cpu_brand + 0x24],ebx
-        mov [cpu_brand + 0x28],ecx
-        mov [cpu_brand + 0x2c],edx
+        mov [cpu_brand + 0x20], eax
+        mov [cpu_brand + 0x24], ebx
+        mov [cpu_brand + 0x28], ecx
+        mov [cpu_brand + 0x2c], edx
 
-        mov ebx,cpu_brnd0
+        mov ebx, cpu_brnd0
         call sys_routine_seg_sel:put_string
-        mov ebx,cpu_brand
+        mov ebx, cpu_brand
         call sys_routine_seg_sel:put_string
-        mov ebx,cpu_brnd1
+        mov ebx, cpu_brnd1
         call sys_routine_seg_sel:put_string
 
         ; 加载用户程序
-        mov ebx,message_5
+        mov ebx, message_5
+        call sys_routine_seg_sel:put_string
+
+        ; 参数：用户程序所在的扇区
+        mov esi, 50
+        call load_relocate_program
+
+        mov ebx, load_finish
         call sys_routine_seg_sel:put_string
 
         hlt
