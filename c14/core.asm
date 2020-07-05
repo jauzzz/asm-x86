@@ -186,11 +186,15 @@ sys_routine_end:
 SECTION core_data vstart=0                  ;系统核心的数据段
 ;-------------------------------------------------------------------------------
          
+        message_1       db  '  If you seen this message,that means we '
+                        db  'are now in protect mode,and the system '
+                        db  'core is loaded,and the video display '
+                        db  'routine works perfectly.',0x0d,0x0a,0
+        message_5       db  '  Loading user program...',0
 
-         message_1        db  '  If you seen this message,that means we '
-                          db  'are now in protect mode,and the system '
-                          db  'core is loaded,and the video display '
-                          db  'routine works perfectly.',0x0d,0x0a,0
+        cpu_brnd0       db 0x0d,0x0a,'  ',0
+        cpu_brand  times 52 db 0
+        cpu_brnd1       db 0x0d,0x0a,0x0d,0x0a,0
 
 core_data_end:
 
@@ -198,13 +202,47 @@ core_data_end:
 SECTION core_code vstart=0
 ;-------------------------------------------------------------------------------
 start:
-         mov ecx,core_data_seg_sel           ;使ds指向核心数据段 
-         mov ds,ecx
+        ;使ds指向核心数据段
+        mov ecx,core_data_seg_sel           
+        mov ds,ecx
 
-         mov ebx,message_1
-         call sys_routine_seg_sel:put_string
+        mov ebx,message_1
+        call sys_routine_seg_sel:put_string
 
-         hlt
+        ;显示处理器品牌信息 
+        mov eax,0x80000002
+        cpuid
+        mov [cpu_brand + 0x00],eax
+        mov [cpu_brand + 0x04],ebx
+        mov [cpu_brand + 0x08],ecx
+        mov [cpu_brand + 0x0c],edx
+    
+        mov eax,0x80000003
+        cpuid
+        mov [cpu_brand + 0x10],eax
+        mov [cpu_brand + 0x14],ebx
+        mov [cpu_brand + 0x18],ecx
+        mov [cpu_brand + 0x1c],edx
+
+        mov eax,0x80000004
+        cpuid
+        mov [cpu_brand + 0x20],eax
+        mov [cpu_brand + 0x24],ebx
+        mov [cpu_brand + 0x28],ecx
+        mov [cpu_brand + 0x2c],edx
+
+        mov ebx,cpu_brnd0
+        call sys_routine_seg_sel:put_string
+        mov ebx,cpu_brand
+        call sys_routine_seg_sel:put_string
+        mov ebx,cpu_brnd1
+        call sys_routine_seg_sel:put_string
+
+        ; 加载用户程序
+        mov ebx,message_5
+        call sys_routine_seg_sel:put_string
+
+        hlt
 
 core_code_end:
 
