@@ -260,7 +260,7 @@ put_hex_dword:                              ; 打印一个双字
         mov ebx,bin_hex
         mov ecx,8
     
-    .xlt:    
+    .xlt:
         rol edx,4
         mov eax,edx
         and eax,0x0000000f
@@ -363,6 +363,7 @@ load_relocate_program:
 
         push eax
         push ebx
+        push ecx
         push edx
 
         mov eax, esi
@@ -386,10 +387,34 @@ load_relocate_program:
         call sys_routine_seg_sel:allocate_memory
 
         ; 将用户程序加载到分配到的空闲内存地址中
+        mov ebx, eax
+        mov eax, esi
+        push eax
 
+        ; 连续读取，这里缺少读取次数
+        ; ecx = 读取次数 = 用户程序长度 / 512
+        xor edx, edx
+        mov eax, [core_buf]
+        mov ecx, 512
+        div ecx
+        mov ecx, eax
 
+        mov edx, ecx
+        call sys_routine_seg_sel:put_hex_dword
+
+        ; 切换到 0~4g 数据段
+        mov eax, mem_0_4_gb_seg_sel
+        mov ds, eax
+
+        pop eax
+
+    .read:
+        call sys_routine_seg_sel:read_hard_disk_0
+        inc eax
+        loop .read
 
         pop edx
+        pop ecx
         pop ebx
         pop eax
 
