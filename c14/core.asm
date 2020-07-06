@@ -284,12 +284,48 @@ put_hex_dword:                              ; 打印一个双字
         retf
 
 ;-------------------------------------------------------------------------------
+allocate_memory:                            ; 分配内存
+                                            ; 参数：eax=要分配的内存长度
+                                            ; 返回: eax=分配到的内存起始地址
+
+        ; 现在采取简易的内存分配方法
+        ; 在内核中定义一个空闲内存区域的起始地址，每次分配就以该起始地址为基准，分配对应长度的空间，并回写内核中的空闲内存起始地址的值
+
+        push ds
+        push ebx
+        push edx        
+
+        mov edx, core_data_seg_sel
+        mov ds, edx
+        
+        mov edx, eax
+        mov eax, [ram_alloc]
+        
+        ; 回写：强制作 4 字节的对齐
+        add edx, eax
+
+        mov ebx, edx
+        and ebx,0xfffffffc
+        add ebx,4 
+        test edx,0x00000003
+        cmovnz edx,ebx
+        mov [ram_alloc], edx
+
+        pop edx
+        pop ebx
+        pop ds
+
+        retf
+;-------------------------------------------------------------------------------
 sys_routine_end:
 
 ;===============================================================================
 SECTION core_data vstart=0                  ;系统核心的数据段
 ;-------------------------------------------------------------------------------
-         
+        
+        ;下次分配内存时的起始地址
+        ram_alloc       dd  0x00100000
+
         message_1       db  '  If you seen this message,that means we '
                         db  'are now in protect mode,and the system '
                         db  'core is loaded,and the video display '
@@ -334,8 +370,24 @@ load_relocate_program:
         call sys_routine_seg_sel:read_hard_disk_0
 
         ; 现在打印一下用户程序的总长度(一个双字)
+        ; 用户程序长度: 000007BC = 1980
         mov edx, [core_buf]
         call sys_routine_seg_sel:put_hex_dword
+
+        ; 现在请求分配内存
+        ; 分配内存要进行 512字节 对齐
+        ; 能被512整除的数，低9位都为0
+        mov ebx, [core_buf]
+        and ebx,0xfffffe00
+        add ebx,512
+        test eax,0x000001ff
+        cmovnz eax,ebx
+
+        call sys_routine_seg_sel:allocate_memory
+
+        ; 将用户程序加载到分配到的空闲内存地址中
+
+
 
         pop edx
         pop ebx
