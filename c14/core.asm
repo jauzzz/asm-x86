@@ -317,12 +317,97 @@ allocate_memory:                            ; 分配内存
 
         retf
 ;-------------------------------------------------------------------------------
+make_seg_descriptor:                        ; 构造存储器和系统的段描述符
+                                            ;输入：EAX=线性基地址
+                                            ;     EBX=段界限
+                                            ;     ECX=属性。各属性位都在原始位置，无关的位清零                                             
+                                            ;返回：EDX:EAX=描述符
+
+        mov edx, eax
+
+        ; 低32位构造完成: 段描述符 15~0 | 段界限 15~0
+        shl eax, 16
+        or ax, bx
+
+        ; 现在构造高32位
+        or edx, 0xffff0000
+        rol edx, 8
+        bswap edx
+
+        xor bx,bx
+        or edx,ebx
+
+        ;装配属性
+        or edx,ecx                         
+
+        retf
+
+;-------------------------------------------------------------------------------
+set_gdt_descriptor:                         ; 安装段描述符并刷新全局描述符表
+                                            ; 参数: EDX:EAX=描述符
+                                            ; 返回: CX=段选择子
+        push ebx
+        push ecx
+        push edx
+        push ds
+        push es
+
+        ; 先获取当前的 pgdt 地址
+        mov ecx, core_data_seg_sel
+        mov ds, ecx
+
+        sgdt [pgdt]
+
+        ; 将描述符添加到 pgdt
+        mov ecx, mem_0_4_gb_seg_sel
+        mov es, ecx
+
+        movzx ebx, [pgdt]
+        inc bx
+        add ebx,[pgdt+2]
+
+        mov [es:ebx], eax
+        mov [es:ebx+4], edx
+
+        ; 修改 pgdt 的界限并更新到寄存器中
+
+        ; 增加了一个描述符，大小为 8 字节
+        add word [pgdt], 8
+
+        ldgt [pgdt]
+        
+        ; 然后计算对应的选择子是多少
+        mov ax,[pgdt]                      ;得到GDT界限值
+        xor dx,dx
+        mov bx,8
+        div bx                             ;除以8，去掉余数
+        ; cx 就是索引号
+        mov cx,ax                          
+        
+        ; 还需要构造出选择子的格式: 13位段选择子索引 + Ti + dpl
+        ; pdgt 总共有 16位，即内存空间为 2^16 = 65536 字节
+        ; 而每个段描述符，共64位，即大小为 8 字节，故 pgdt 最多可以有 65536 / 8 = 8192 个 = 2^13 个
+        shl cx,3
+
+        pop es
+        pop ds
+        pop edx
+        pop ecx
+        pop ebx
+        
+        retf
+
+;-------------------------------------------------------------------------------
 sys_routine_end:
 
 ;===============================================================================
 SECTION core_data vstart=0                  ;系统核心的数据段
 ;-------------------------------------------------------------------------------
         
+        ; 用于设置和修改GDT
+        pgdt            dw 0
+                        dd 0
+
         ;下次分配内存时的起始地址
         ram_alloc       dd  0x00100000
 
@@ -389,6 +474,9 @@ load_relocate_program:
         ; 将用户程序加载到分配到的空闲内存地址中
         mov ebx, eax
         mov eax, esi
+        
+        ; 暂存一下分配到的内存起始 ebx
+        push ebx
         push eax
 
         ; 连续读取，这里缺少读取次数
@@ -412,6 +500,90 @@ load_relocate_program:
         call sys_routine_seg_sel:read_hard_disk_0
         inc eax
         loop .read
+
+        ; 现在加载已经完成了，准备执行条件
+        ;   1. 为用户程序创建对应的描述符，刷新 pgdt 寄存器
+        ;   2. 重定位 salt 表
+
+        ; Step1: 创建用户程序的描述符
+        ;   - 用户程序头部描述符
+        ;   - 用户程序数据段描述符
+        ;   - 用户程序代码段描述符
+
+        ; 创建用户程序头部描述符
+        ; 描述符组成: 段起始地址、段界限、其他标志位
+        pop edi
+        ; eax = 段起始地址 = ebx
+        mov eax, edi
+        ; ebx = 段界限 = 段长度 - 1
+        mov ebx, [edi+0x04]
+        dec ebx
+        ; 其它标志位: 
+        ;   G: 粒度位, 0表示字节粒度, 1表示 4KB 字节粒度
+        ;   S: 描述符类型, 0表示是系统段, 1 表示是代码段/数据段
+        ;   DPL: 描述符的特权级, 不同特权级的程序间是相互隔离的
+        ;   P: 段存在位, 指示描述符对应的段是否存在于内存，其检查是由处理器负责的
+        ;   D/B: 默认的操作数大小
+        ;       对于代码段, 称为 D 位，用于指示指令中默认的偏移地址和操作数尺寸
+        ;                 D=0 时表示操作数是16位的，D=1 时表示是32位的
+        ;       对于栈段，称为 B 位，用于指示栈操作使用 sp 还是 esp 寄存器
+        ;               B=0 时使用 sp 寄存器，B=1 时使用 esp 寄存器
+        ;               同时也指定栈的上部边界的值，B=0 时是 0xffff，B=1 时是 0xffffffff
+        ;   L: 64位代码段标志，保留此位给 64 位处理器使用
+        ;   TYPE: 描述符的子类型
+        ;         对于数据段来说，这4位分别是 X E W A
+        ;         对于代码段来说，这4位分别是 X C R A
+        ;         X: 是否可执行
+        ;         E: 段的扩展方向，E=0时，数据段向上扩展，是普通的数据段；E=1时，数据段向下扩展，是栈段
+        ;         W: 是否可写，W=0时表示不可写入，W=1时可以写入
+        ;         A: 已访问位，指示该段最近是否被访问，描述符创建时初始为0  
+        ;         C: 是否特权级依从的
+        ;            C=0表示非依从代码段，只可以被相同特权级代码段调用，或通过门调用
+        ;            C=1表示允许从低特权级的代码段转移到这里执行
+        ;         R: 是否可读的，R=0表示不可读，R=1时表示可读，即可以当做ROM使用
+        ;            这里的R位限制的是程序和指令的行为，如：cs:xxx
+        ;            处理器是可以正常取指的
+
+        ;程序头部的标志位应该是: G=0, S=1, DPL=0, P=1, D=1, L=0, TYPE=0010
+        mov ecx,0x00409200
+        call sys_routine_seg_sel:make_seg_descriptor
+        call sys_routine_seg_sel:set_gdt_descriptor
+        mov [edi+0x04], cx
+
+        ; 代码段描述符
+        mov eax, [edi+0x1c]
+        mov ebx, [edi+0x20]
+        dec ebx
+        mov ecx,0x00409800
+        call sys_routine_seg_sel:make_seg_descriptor
+        call sys_routine_seg_sel:set_gdt_descriptor
+        mov [edi+0x14], cx
+
+        ; 数据段描述符
+        mov eax, [edi+0x1c]
+        mov ebx, [edi+0x20]
+        dec ebx
+        mov ecx,0x00409200
+        call sys_routine_seg_sel:make_seg_descriptor
+        call sys_routine_seg_sel:set_gdt_descriptor
+        mov [edi+0x1c], cx
+
+        ; 栈段描述符
+        ; 计算栈界限
+        mov ecx,[edi+0x0c]                 ;4KB的倍率 
+        mov ebx,0x000fffff
+        sub ebx,ecx                        ;得到段界限
+        mov eax,4096                        
+        mul dword [edi+0x0c]                         
+        mov ecx,eax                        ;准备为堆栈分配内存 
+        call sys_routine_seg_sel:allocate_memory
+        add eax,ecx                        ;得到堆栈的高端物理地址 
+        mov ecx,0x00c09600                 ;4KB粒度的堆栈段描述符
+        call sys_routine_seg_sel:make_seg_descriptor
+        call sys_routine_seg_sel:set_up_gdt_descriptor
+        mov [edi+0x08],cx
+        
+        ; 重定位 SALT 表
 
         pop edx
         pop ecx
