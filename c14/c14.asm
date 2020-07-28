@@ -70,6 +70,12 @@ start:
          mov eax,100                         ;逻辑扇区号100
          mov ebx,buffer                      ;缓冲区偏移地址
          call far [fs:ReadDiskData]          ;段间调用
+         
+      ;    ;习题2: 通过栈传递参数，而且传递的参数分别是逻辑扇区号、数据段选择子和段内偏移
+      ;    push 100
+      ;    push ds
+      ;    push buffer
+      ;    call far [fs:ReadDiskData]
      
          mov ebx,message_2
          call far [fs:PrintString]
@@ -77,7 +83,7 @@ start:
          mov ebx,buffer 
          call far [fs:PrintString]           ;too.
      
-         jmp far [fs:TerminateProgram]       ;将控制权返回到系统 
+         call far [fs:TerminateProgram]       ;将控制权返回到系统 
       
 code_end:
 

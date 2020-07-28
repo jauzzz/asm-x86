@@ -1,7 +1,7 @@
-         ;代码清单14-1
-         ;文件名：c14_core.asm
+         ;代码清单13-2
+         ;文件名：c13_core.asm
          ;文件说明：保护模式微型核心程序 
-         ;创建日期：2011-11-6 18:37
+         ;创建日期：2011-10-26 12:11
 
          ;以下常量定义部分。内核的大部分内容都应当固定 
          core_code_seg_sel     equ  0x38    ;内核代码段选择子
@@ -138,7 +138,6 @@ put_char:                                   ;在当前光标处显示一个字�
          out dx,al
 
          popad
-         
          ret                                
 
 ;-------------------------------------------------------------------------------
@@ -151,7 +150,7 @@ read_hard_disk_0:                           ;从硬盘读取一个逻辑扇区
          push edx
       
          push eax
-
+         
          mov dx,0x1f2
          mov al,1
          out dx,al                          ;读取的扇区数
@@ -267,10 +266,10 @@ set_up_gdt_descriptor:                      ;在GDT内安装一个新的描述�
          push eax
          push ebx
          push edx
-
+      
          push ds
          push es
-
+      
          mov ebx,core_data_seg_sel          ;切换到核心数据段
          mov ds,ebx
 
@@ -279,23 +278,23 @@ set_up_gdt_descriptor:                      ;在GDT内安装一个新的描述�
          mov ebx,mem_0_4_gb_seg_sel
          mov es,ebx
 
-         movzx ebx,word [pgdt]              ;GDT界限
-         inc bx                             ;GDT总字节数，也是下一个描述符偏移
-         add ebx,[pgdt+2]                   ;下一个描述符的线性地址
-
+         movzx ebx,word [pgdt]              ;GDT界限 
+         inc bx                             ;GDT总字节数，也是下一个描述符偏移 
+         add ebx,[pgdt+2]                   ;下一个描述符的线性地址 
+      
          mov [es:ebx],eax
          mov [es:ebx+4],edx
-
-         add word [pgdt],8                  ;增加一个描述符的大小
-
-         lgdt [pgdt]                        ;对GDT的更改生效
-
+      
+         add word [pgdt],8                  ;增加一个描述符的大小   
+      
+         lgdt [pgdt]                        ;对GDT的更改生效 
+       
          mov ax,[pgdt]                      ;得到GDT界限值
          xor dx,dx
          mov bx,8
          div bx                             ;除以8，去掉余数
-         mov cx,ax
-         shl cx,3                           ;将索引号移到正确位置
+         mov cx,ax                          
+         shl cx,3                           ;将索引号移到正确位置 
 
          pop es
          pop ds
@@ -303,8 +302,8 @@ set_up_gdt_descriptor:                      ;在GDT内安装一个新的描述�
          pop edx
          pop ebx
          pop eax
-
-         retf
+      
+         retf 
 ;-------------------------------------------------------------------------------
 make_seg_descriptor:                        ;构造存储器和系统的段描述符
                                             ;输入：EAX=线性基地址
@@ -327,6 +326,7 @@ make_seg_descriptor:                        ;构造存储器和系统的段描�
 
          retf
 
+
 ;-------------------------------------------------------------------------------
 make_gate_descriptor:                       ;构造门的描述符（调用门等）
                                             ;输入：EAX=门代码在段内偏移地址
@@ -348,13 +348,12 @@ make_gate_descriptor:                       ;构造门的描述符（调用门�
          pop ecx
          pop ebx
       
-         retf                                   
-                             
-sys_routine_end:
+         retf
 
+sys_routine_end:		 
 ;===============================================================================
-SECTION core_data vstart=0                  ;系统核心的数据段 
-;------------------------------------------------------------------------------- 
+SECTION core_data vstart=0                  ;系统核心的数据段
+;-------------------------------------------------------------------------------
          pgdt             dw  0             ;用于设置和修改GDT 
                           dd  0
 
@@ -389,10 +388,8 @@ SECTION core_data vstart=0                  ;系统核心的数据段
                           db  'are now in protect mode,and the system '
                           db  'core is loaded,and the video display '
                           db  'routine works perfectly.',0x0d,0x0a,0
-
-         message_2        db  '  System wide CALL-GATE mounted.',0x0d,0x0a,0
-         
-         message_3        db  0x0d,0x0a,'  Loading user program...',0
+		 message_2        db  '  System wide CALL-GATE mounted.',0x0d,0x0a,0
+         message_5        db  '  Loading user program...',0
          
          do_status        db  'Done.',0x0d,0x0a,0
          
@@ -401,7 +398,6 @@ SECTION core_data vstart=0                  ;系统核心的数据段
 
          bin_hex          db '0123456789ABCDEF'
                                             ;put_hex_dword子过程用的查找表 
-
          core_buf   times 2048 db 0         ;内核用的缓冲区
 
          esp_pointer      dd 0              ;内核用来临时保存自己的栈指针     
@@ -410,100 +406,63 @@ SECTION core_data vstart=0                  ;系统核心的数据段
          cpu_brand  times 52 db 0
          cpu_brnd1        db 0x0d,0x0a,0x0d,0x0a,0
 
-         ;任务控制块链
-         tcb_chain        dd  0
-
-core_data_end:
-               
+		 tcb_chain		  dd 0
 ;===============================================================================
 SECTION core_code vstart=0
 ;-------------------------------------------------------------------------------
-fill_descriptor_in_ldt:                     ;在LDT内安装一个新的描述符
+fill_descriptor_in_ldt:						;在LDT内安装一个新的描述符
                                             ;输入：EDX:EAX=描述符
-                                            ;          EBX=TCB基地址
+                                            ;         EBX=TCB基地址
                                             ;输出：CX=描述符的选择子
-         push eax
-         push edx
-         push edi
-         push ds
 
-         mov ecx,mem_0_4_gb_seg_sel
-         mov ds,ecx
-
-         mov edi,[ebx+0x0c]                 ;获得LDT基地址
-         
-         xor ecx,ecx
-         mov cx,[ebx+0x0a]                  ;获得LDT界限
-         inc cx                             ;LDT的总字节数，即新描述符偏移地址
-         
-         mov [edi+ecx+0x00],eax
-         mov [edi+ecx+0x04],edx             ;安装描述符
-
-         add cx,8                           
-         dec cx                             ;得到新的LDT界限值 
-
-         mov [ebx+0x0a],cx                  ;更新LDT界限值到TCB
-
-         mov ax,cx
-         xor dx,dx
-         mov cx,8
-         div cx
-         
-         mov cx,ax
-         shl cx,3                           ;左移3位，并且
-         or cx,0000_0000_0000_0100B         ;使TI位=1，指向LDT，最后使RPL=00
-
-         pop ds
-         pop edi
-         pop edx
-         pop eax
-     
-         ret
-      
-;------------------------------------------------------------------------------- 
+		 ;
+;-------------------------------------------------------------------------------
 load_relocate_program:                      ;加载并重定位用户程序
-                                            ;输入: PUSH 逻辑扇区号
-                                            ;      PUSH 任务控制块基地址
-                                            ;输出：无 
+                                            ;输入：ESI=起始逻辑扇区号
+                                            ;返回：AX=指向用户程序头部的选择子 
          pushad
       
          push ds
          push es
       
-         mov ebp,esp                        ;为访问通过堆栈传递的参数做准备
-      
-         mov ecx,mem_0_4_gb_seg_sel
-         mov es,ecx
-      
-         mov esi,[ebp+11*4]                 ;从堆栈中取得TCB的基地址
+	  	 ; 栈基址指针寄存器
+		 mov ebp, esp
 
-         ;以下申请创建LDT所需要的内存
-         mov ecx,160                        ;允许安装20个LDT描述符
-         call sys_routine_seg_sel:allocate_memory
-         mov [es:esi+0x0c],ecx              ;登记LDT基地址到TCB中
-         mov word [es:esi+0x0a],0xffff      ;登记LDT初始的界限到TCB中 
-
-         ;以下开始加载用户程序 
          mov eax,core_data_seg_sel
          mov ds,eax                         ;切换DS到内核数据段
+		 mov eax,mem_0_4_gb_seg_sel
+         mov es,eax
        
-         mov eax,[ebp+12*4]                 ;从堆栈中取出用户程序起始扇区号 
-         mov ebx,core_buf                   ;读取程序头部数据     
+		 ; 为当前任务创建 LDT
+		 mov ecx, 160
+		 call sys_routine_seg_sel:allocate_memory
+		 
+		 ; 将 LDT 登记到 TCB
+		 ; esi 是 TCB 基地址
+		 mov esi, [ebp+11*4]
+		 mov [es:esi+0x0c],ecx              ;登记LDT基地址到TCB中
+         mov word [es:esi+0x0a],0xffff      ;登记LDT初始的界限到TCB中
+
+         mov eax,[ebp+12*4]                        ;读取程序头部数据
+         mov ebx,core_buf                        
          call sys_routine_seg_sel:read_hard_disk_0
 
          ;以下判断整个程序有多大
          mov eax,[core_buf]                 ;程序尺寸
          mov ebx,eax
-         and ebx,0xfffffe00                 ;使之512字节对齐（能被512整除的数低 
-         add ebx,512                        ;9位都为0 
+         and ebx,0xfffffe00                 ;使之512字节对齐（能被512整除的数， 
+         add ebx,512                        ;低9位都为0 
          test eax,0x000001ff                ;程序的大小正好是512的倍数吗? 
-         cmovnz eax,ebx                     ;不是。使用凑整的结果
+         cmovnz eax,ebx                     ;不是。使用凑整的结果 
       
          mov ecx,eax                        ;实际需要申请的内存数量
          call sys_routine_seg_sel:allocate_memory
-         mov [es:esi+0x06],ecx              ;登记程序加载基地址到TCB中
-      
+
+		 ; 登记程序加载地址到 TCB
+		 mov [es:esi+0x06], ecx
+
          mov ebx,ecx                        ;ebx -> 申请到的内存首地址
+         push ebx                           ;保存该首地址 
          xor edx,edx
          mov ecx,512
          div ecx
@@ -512,47 +471,50 @@ load_relocate_program:                      ;加载并重定位用户程序
          mov eax,mem_0_4_gb_seg_sel         ;切换DS到0-4GB的段
          mov ds,eax
 
-         mov eax,[ebp+12*4]                 ;起始扇区号 
+         mov eax,esi                        ;起始扇区号 
   .b1:
          call sys_routine_seg_sel:read_hard_disk_0
          inc eax
          loop .b1                           ;循环读，直到读完整个用户程序
 
-         mov edi,[es:esi+0x06]              ;获得程序加载基地址
-
          ;建立程序头部段描述符
+         pop edi                            ;恢复程序装载的首地址 
          mov eax,edi                        ;程序头部起始线性地址
          mov ebx,[edi+0x04]                 ;段长度
-         dec ebx                            ;段界限
-         mov ecx,0x0040f200                 ;字节粒度的数据段描述符，特权级3 
+         dec ebx                            ;段界限 
+         mov ecx,0x0040f200                 ;字节粒度的数据段描述符
          call sys_routine_seg_sel:make_seg_descriptor
-      
-         ;安装头部段描述符到LDT中 
-         mov ebx,esi                        ;TCB的基地址
+
+		 ;由注册到 gdt 改为建立 ldt
+		 mov ebx, esi
          call fill_descriptor_in_ldt
 
-         or cx,0000_0000_0000_0011B         ;设置选择子的特权级为3
-         mov [es:esi+0x44],cx               ;登记程序头部段选择子到TCB 
-         mov [edi+0x04],cx                  ;和头部内 
-      
+		 ;设置特权级为3，并登记到 TCB
+		 or cx, 0000_0000_0000_0011B
+		 mov [es:esi+0x44], cx
+		 ;回写到用户程序头部
+         mov [edi+0x04],cx
+
          ;建立程序代码段描述符
          mov eax,edi
          add eax,[edi+0x14]                 ;代码起始线性地址
          mov ebx,[edi+0x18]                 ;段长度
          dec ebx                            ;段界限
-         mov ecx,0x0040f800                 ;字节粒度的代码段描述符，特权级3
+         mov ecx,0x0040f800                 ;字节粒度的代码段描述符
          call sys_routine_seg_sel:make_seg_descriptor
-         mov ebx,esi                        ;TCB的基地址
-         call fill_descriptor_in_ldt
-         or cx,0000_0000_0000_0011B         ;设置选择子的特权级为3
-         mov [edi+0x14],cx                  ;登记代码段选择子到头部
+
+		 mov ebx, esi
+		 call fill_descriptor_in_ldt
+
+		 or cx,0000_0000_0000_0011B
+         mov [edi+0x14],cx
 
          ;建立程序数据段描述符
          mov eax,edi
          add eax,[edi+0x1c]                 ;数据段起始线性地址
          mov ebx,[edi+0x20]                 ;段长度
-         dec ebx                            ;段界限 
-         mov ecx,0x0040f200                 ;字节粒度的数据段描述符，特权级3
+         dec ebx                            ;段界限
+         mov ecx,0x00409200                 ;字节粒度的数据段描述符
          call sys_routine_seg_sel:make_seg_descriptor
          mov ebx,esi                        ;TCB的基地址
          call fill_descriptor_in_ldt
@@ -564,29 +526,28 @@ load_relocate_program:                      ;加载并重定位用户程序
          mov ebx,0x000fffff
          sub ebx,ecx                        ;得到段界限
          mov eax,4096                        
-         mul ecx                         
+         mul dword [edi+0x0c]                         
          mov ecx,eax                        ;准备为堆栈分配内存 
          call sys_routine_seg_sel:allocate_memory
          add eax,ecx                        ;得到堆栈的高端物理地址 
-         mov ecx,0x00c0f600                 ;字节粒度的堆栈段描述符，特权级3
+         mov ecx,0x00c09600                 ;4KB粒度的堆栈段描述符
          call sys_routine_seg_sel:make_seg_descriptor
          mov ebx,esi                        ;TCB的基地址
          call fill_descriptor_in_ldt
          or cx,0000_0000_0000_0011B         ;设置选择子的特权级为3
          mov [edi+0x08],cx                  ;登记堆栈段选择子到头部
 
-         ;重定位SALT 
-         mov eax,mem_0_4_gb_seg_sel         ;这里和前一章不同，头部段描述符
-         mov es,eax                         ;已安装，但还没有生效，故只能通
-                                            ;过4GB段访问用户程序头部          
+         ;重定位SALT
+         mov eax,mem_0_4_gb_seg_sel
+         mov es,eax
          mov eax,core_data_seg_sel
          mov ds,eax
       
          cld
 
-         mov ecx,[es:edi+0x24]              ;U-SALT条目数(通过访问4GB段取得) 
-         add edi,0x28                       ;U-SALT在4GB段内的偏移 
-  .b2: 
+         mov ecx,[es:edi+0x24]                  ;用户程序的SALT条目数
+         mov edi,0x28                       ;用户程序内的SALT位于头部内0x2c处
+  .b2:
          push ecx
          push edi
       
@@ -600,12 +561,13 @@ load_relocate_program:                      ;加载并重定位用户程序
          mov ecx,64                         ;检索表中，每条目的比较次数 
          repe cmpsd                         ;每次比较4字节 
          jnz .b4
-         mov eax,[esi]                      ;若匹配，则esi恰好指向其后的地址
+         mov eax,[esi]                      ;若匹配，esi恰好指向其后的地址数据
          mov [es:edi-256],eax               ;将字符串改写成偏移地址 
          mov ax,[esi+4]
-         or ax,0000000000000011B            ;以用户程序自己的特权级使用调用门
-                                            ;故RPL=3 
-         mov [es:edi-252],ax                ;回填调用门选择子 
+		 
+		 ;设置调用门的特权级为 3
+		 or ax,0000000000000011B
+         mov [es:edi-252],ax                ;以及段选择子 
   .b4:
       
          pop ecx
@@ -619,7 +581,8 @@ load_relocate_program:                      ;加载并重定位用户程序
          pop ecx
          loop .b2
 
-         mov esi,[ebp+11*4]                 ;从堆栈中取得TCB的基地址
+		 ;接下来，还需要创建不同特权级的堆栈并登记到 TCB
+		 mov esi,[ebp+11*4]                 ;从堆栈中取得TCB的基地址
 
          ;创建0特权级堆栈
          mov ecx,4096
@@ -672,15 +635,16 @@ load_relocate_program:                      ;加载并重定位用户程序
          mov [es:esi+0x3e],cx               ;登记2特权级堆栈选择子到TCB
          mov dword [es:esi+0x40],0          ;登记2特权级堆栈初始ESP到TCB
       
-         ;在GDT中登记LDT描述符
-         mov eax,[es:esi+0x0c]              ;LDT的起始线性地址
+	  	 ;在GDT中登记LDT描述符
+		 mov eax,[es:esi+0x0c]              ;LDT的起始线性地址
          movzx ebx,word [es:esi+0x0a]       ;LDT段界限
          mov ecx,0x00408200                 ;LDT描述符，特权级0
          call sys_routine_seg_sel:make_seg_descriptor
          call sys_routine_seg_sel:set_up_gdt_descriptor
          mov [es:esi+0x10],cx               ;登记LDT选择子到TCB中
-       
-         ;创建用户程序的TSS
+
+		 ;接下来是创建并登记 TSS
+		 ;创建用户程序的TSS
          mov ecx,104                        ;tss的基本尺寸
          mov [es:esi+0x12],cx              
          dec word [es:esi+0x12]             ;登记TSS界限值到TCB 
@@ -712,12 +676,12 @@ load_relocate_program:                      ;加载并重定位用户程序
          mov [es:ecx+96],dx                 ;到TSS中
       
          mov dx,[es:esi+0x12]               ;登记任务的I/O位图偏移
-         mov [es:ecx+102],dx                ;到TSS中 
+         mov [es:ecx+102],dx                ;到TSS中
       
          mov word [es:ecx+100],0            ;T=0
        
-         ;在GDT中登记TSS描述符
-         mov eax,[es:esi+0x14]              ;TSS的起始线性地址
+	   	 ;在GDT中登记 TSS 描述符
+		 mov eax,[es:esi+0x14]              ;TSS的起始线性地址
          movzx ebx,word [es:esi+0x12]       ;段长度（界限）
          mov ecx,0x00408900                 ;TSS描述符，特权级0
          call sys_routine_seg_sel:make_seg_descriptor
@@ -729,54 +693,83 @@ load_relocate_program:                      ;加载并重定位用户程序
       
          popad
       
-         ret 8                              ;丢弃调用本过程前压入的参数 
+	  	 ;返回时，弹出 8 字节的数据
+		 ;8字节 = 2个双字 = 我们一开始压入的2个参数
+         ret 8
       
 ;-------------------------------------------------------------------------------
-append_to_tcb_link:                         ;在TCB链上追加任务控制块
-                                            ;输入：ECX=TCB线性基地址
-         push eax
-         push edx
-         push ds
-         push es
-         
-         mov eax,core_data_seg_sel          ;令DS指向内核数据段 
-         mov ds,eax
-         mov eax,mem_0_4_gb_seg_sel         ;令ES指向0..4GB段
-         mov es,eax
-         
-         mov dword [es: ecx+0x00],0         ;当前TCB指针域清零，以指示这是最
-                                            ;后一个TCB
-                                             
-         mov eax,[tcb_chain]                ;TCB表头指针
-         or eax,eax                         ;链表为空？
-         jz .notcb 
-         
-  .searc:
-         mov edx,eax
-         mov eax,[es: edx+0x00]
-         or eax,eax               
-         jnz .searc
-         
-         mov [es: edx+0x00],ecx
-         jmp .retpc
-         
-  .notcb:       
-         mov [tcb_chain],ecx                ;若为空表，直接令表头指针指向TCB
-         
-  .retpc:
-         pop es
-         pop ds
-         pop edx
-         pop eax
-         
-         ret
-         
+append_to_tcb_link:							;在TCB链上添加控制块
+											;参数: ECX=TCB控制块线性地址
+
+		;TCB控制块的结构:
+		;	头部选择子
+		;	2特权级栈的初始ESP
+		;	2特权级栈选择子
+		;	2特权级栈基地址
+		;	2特权级栈以 4KB 为单位的长度
+		;	1特权级栈的初始ESP
+		;	1特权级栈选择子
+		;	1特权级栈基地址
+		;	1特权级栈以 4KB 为单位的长度
+		;	0特权级栈的初始ESP
+		;	0特权级栈选择子
+		;	0特权级栈基地址
+		;	0特权级栈以 4KB 为单位的长度
+		;	TSS选择子
+		;	TSS基地址
+		;	TSS界限值
+		;	LDT选择子
+		;	LDT基地址
+		;	LDT当前界限值
+		;	程序加载基地址
+		;	任务状态
+		;	下一个 TCB 块基地址
+
+		push eax
+		push edx
+		push ds
+		push es
+
+		mov eax, core_data_seg_sel
+		mov ds, eax
+		mov eax, mem_0_4_gb_seg_sel
+		mov es, eax
+
+		; TCB 表头是否为空
+		mov eax, [tcb_chain]
+		or eax, eax
+		jz .notcb
+
+	.searc:
+		;表头不为空，找到最后一个 tcb 块
+		
+		; 下一个 TCB 块的物理地址
+		mov edx, eax
+		mov eax, [es:edx+0x00]
+		or eax, eax
+		jnz .searc
+
+		mov [es:edx+0x00], ecx
+		jmp .retpc
+
+	.notcb:
+		; 令头指针指向 TCB
+		mov [tcb_chain], ecx
+
+	.retpc:
+		pop es
+		pop ds
+		pop edx
+		pop eax
+
+		ret
+
 ;-------------------------------------------------------------------------------
 start:
-         mov ecx,core_data_seg_sel          ;使ds指向核心数据段 
+         mov ecx,core_data_seg_sel           ;使ds指向核心数据段 
          mov ds,ecx
 
-         mov ebx,message_1                    
+         mov ebx,message_1
          call sys_routine_seg_sel:put_string
                                          
          ;显示处理器品牌信息 
@@ -799,17 +792,17 @@ start:
          mov [cpu_brand + 0x20],eax
          mov [cpu_brand + 0x24],ebx
          mov [cpu_brand + 0x28],ecx
-         mov [cpu_brand + 0x2c],edx
+         mov [cpu_brand + 0x2c],edx		 
 
-         mov ebx,cpu_brnd0                  ;显示处理器品牌信息 
+         mov ebx,cpu_brnd0
          call sys_routine_seg_sel:put_string
          mov ebx,cpu_brand
          call sys_routine_seg_sel:put_string
          mov ebx,cpu_brnd1
          call sys_routine_seg_sel:put_string
 
-         ;以下开始安装为整个系统服务的调用门。特权级之间的控制转移必须使用门
-         mov edi,salt                       ;C-SALT表的起始位置 
+		 ;需要为所有系统例程，安装调用门
+		 mov edi,salt                       ;C-SALT表的起始位置 
          mov ecx,salt_items                 ;C-SALT表的条目数量 
   .b3:
          push ecx   
@@ -828,33 +821,35 @@ start:
          ;对门进行测试 
          mov ebx,message_2
          call far [salt_1+256]              ;通过门显示信息(偏移量将被忽略) 
-      
-         mov ebx,message_3                    
-         call sys_routine_seg_sel:put_string ;在内核中调用例程不需要通过门
-      
-         ;创建任务控制块。这不是处理器的要求，而是我们自己为了方便而设立的
-         mov ecx,0x46
-         call sys_routine_seg_sel:allocate_memory
-         call append_to_tcb_link            ;将任务控制块追加到TCB链表 
-      
-         push dword 50                      ;用户程序位于逻辑50扇区
-         push ecx                           ;压入任务控制块起始线性地址 
-       
+
+         mov ebx,message_5
+         call sys_routine_seg_sel:put_string
+
+		 ;创建当前任务的 tcb 块
+		 mov ecx, 0x46
+		 call sys_routine_seg_sel:allocate_memory
+		 call append_to_tcb_link
+
+		 ;现在改用栈来传递参数
+		 ;用户程序位于逻辑50扇区 
+		 push 50
+		 push ecx
+            
          call load_relocate_program
       
          mov ebx,do_status
          call sys_routine_seg_sel:put_string
       
-         mov eax,mem_0_4_gb_seg_sel
-         mov ds,eax
-      
-         ltr [ecx+0x18]                     ;加载任务状态段 
-         lldt [ecx+0x10]                    ;加载LDT
-      
-         mov eax,[ecx+0x44]
-         mov ds,eax                         ;切换到用户程序头部段 
+         mov eax, mem_0_4_gb_seg_sel
+		 mov ds, eax
 
-         ;以下假装是从调用门返回。摹仿处理器压入返回参数 
+		 ltr [ecx+0x18]
+		 lldt [ecx+0x10]
+
+		 ;执行用户程序
+		 ;由于内核是0特权级，用户程序是3特权级，0特权级是不可以调用3特权级的程序的
+		 ;我们通过，假装从调用门返回的方式，来绕过限制
+
          push dword [0x08]                  ;调用前的堆栈段选择子
          push dword 0                       ;调用前的esp
 
@@ -863,7 +858,7 @@ start:
       
          retf
 
-return_point:                               ;用户程序返回点
+return_point:                                ;用户程序返回点
          mov eax,core_data_seg_sel          ;因为c14.asm是以JMP的方式使用调 
          mov ds,eax                         ;用门@TerminateProgram，回到这 
                                             ;里时，特权级为3，会导致异常。 
@@ -871,10 +866,10 @@ return_point:                               ;用户程序返回点
          call sys_routine_seg_sel:put_string
 
          hlt
-            
+
 core_code_end:
 
-;-------------------------------------------------------------------------------
+;===============================================================================
 SECTION core_trail
 ;-------------------------------------------------------------------------------
 core_end:
