@@ -1,4 +1,4 @@
-ASMFILE=c11_mbr.asm
+ASMFILE=mbr.asm
 
 all:$(ASMFILE)
 	nasm -f bin $(ASMFILE) -o mbr.bin
