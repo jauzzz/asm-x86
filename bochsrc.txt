@@ -8,8 +8,8 @@ megs: 32
  
 # 第二步，设置对应真实机器的BIOS和VGA BIOS.
 # 对应两个关键字为：romimage 和 vgaromimage
-romimage: file=/Users/yingli/tools/bochs/share/bochs/BIOS-bochs-latest
-vgaromimage: file=/Users/yingli/tools/bochs/share/bochs/VGABIOS-lgpl-latest
+romimage: file=/Users/LesPark/tools/bochs/share/bochs/BIOS-bochs-latest
+vgaromimage: file=/Users/LesPark/tools/bochs/share/bochs/VGABIOS-lgpl-latest
  
 # 第三步，设置Bochs所使用的磁盘，软盘的关键字为floppy。
 # 若只有一个软盘，则使用floppya即可，若有多个，则为floppya，floppyb...
@@ -19,7 +19,7 @@ floppy_bootsig_check: disabled=1
 boot: disk
 
 ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
-ata0-master: type=disk, path="/Users/yingli/Documents/Github/asm-x86/c13_1/c13.vhd", mode=vpc, cylinders=1003, heads=12, spt=17, model="Generic 1234", biosdetect=auto, translation=auto
+ata0-master: type=disk, path="/Users/LesPark/Documents/github/asm-x86/jauzzz/loader/loader.vhd", mode=vpc, cylinders=1003, heads=12, spt=17, model="Generic 1234", biosdetect=auto, translation=auto
 ata1: enabled=1, ioaddr1=0x170, ioaddr2=0x370, irq=15
 ata2: enabled=0
 ata3: enabled=0
@@ -30,4 +30,4 @@ log: bochsout.txt
 # 第六步，开启或关闭某些功能。
 # 下面是关闭鼠标，并打开键盘。
 # mouse: enabled=0
-# keyboard_mapping: enabled=1, map=$BXSHARE/keymaps/x11-pc-us.map
+# keyboard_mapping: enabled=1, map=/Users/LesPark/tools/bochs/share/bochs/keymaps/x11-pc-us.map
