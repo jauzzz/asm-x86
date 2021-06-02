@@ -20,9 +20,7 @@ SECTION mbr align=16 vstart=0x7c00
         mov sp, ax
 
         ; 计算参数，调用 read_hard_disk_0
-        xor di, di
-        mov si, app_lba_start
-
+        
         ; NOTE: 大端序/小端序
         ;       将一个多位数的低位放在较小的地址处，高位放在较大的地址处，则称小端序；反之则称大端序。
         ;
@@ -40,18 +38,76 @@ SECTION mbr align=16 vstart=0x7c00
         mov ds, ax
         mov es, ax
 
-        call print_read_debug_msg
+        xor di, di
+        mov si, app_lba_start
+        xor bx, bx
 
         ; TODO:我们假设用户程序比较小，就只有一个扇区那么大
         ;
         ; 现在我们得放开假设，用户程序不会只有一个扇区这么小的
-        ; 那么我们就得计算出要加载多少个扇区，然后循环调用 read_hard_disk_0
+        ; 那么我们就得计算出要加载多少个扇区，然后循环调用 read_hard_disk_0             
         ; 扇区数量 = 用户程序的大小 / 扇区大小（512 字节）
         ;
         ; 可是我们不知道用户程序的大小！
         ; 于是，我们有一个规定/协议，让用户程序在一个固定的位置提供一些信息，比如用户程序的大小
         ; 这样，加载器就可以得到这些信息，进行加载动作
+
+        ; 而这些信息，由用户程序记录在自己头部
+        ; 我们必须先将用户程序加载到内存中，才能获取到这些头部信息；
+        ; 因此，我们先预取一个扇区的用户程序数据
         call read_hard_disk_0
+
+        mov dx, [0x02]
+        mov ax, [0x00]
+        mov bx, 512
+        div bx
+
+        ; 商是 ax，余数是 dx
+        cmp dx, 0
+        jnz @1
+        ; 如果余数不为 0，表明要读取的扇区数 = 商
+        ; 而我们已经预读了一个扇区，所以还要读取的扇区数 = 商 - 1
+        dec ax
+
+    @1:
+        ; 为什么有余数？
+        ; 因为硬盘的读写是以扇区为单位的，读/写都是一个扇区，不能读/写多少字节
+        ; 所以，如果程序大小，不是扇区大小的整数倍，就需要额外一个扇区来存储这些数据
+        ;
+        ; dx != 0，即余数不为 0，说明占用了一个额外的扇区，对应的要读取的扇区数 = 商 + 1
+        ; 而我们之前已经预读了一个扇区，用来获取用户程序头部的信息，那么接下来，只需要判断商是否为 0？
+        cmp ax, 0
+        jz direct
+
+        ; 下面要修改 ds 的值，所以先暂存一下
+        push ds
+
+        ; 如果 ax != 0，即还需要加载 ax 次扇区数据
+        mov cx, ax
+
+    @2:
+        ; 计算参数 (di 不变、si+1、ds:bx + 512)
+        
+        ; 这里有一个问题是这样的，ds:bx + 512，需要考虑溢出情况：
+        ;   - bx 是16位的，所能表示的最大值为 2^16 = 65536，即一个段的大小为 64KB
+        ;   - 假设 bx + 512 > 65536，就会回绕到 0x0000 开始算，得到错误的结果
+        ;   - 所以，为了避免溢出，可以计算段地址
+        mov ax, ds
+        add ax, 0x20
+        mov ds, ax
+
+        xor bx, bx
+        inc si
+
+        call read_hard_disk_0
+        loop @2
+
+        ; 恢复 ds 的值
+        pop ds
+
+    direct:
+        ; 进入这个步骤，表明读取完成
+        call print_read_debug_msg
 
         ; 调用用户程序（给 jmp 指令提供用户程序的 cs:ip）
         ; 我们需要在用户程序处，存储一个双字，记录用户程序的 cs:ip
@@ -179,7 +235,7 @@ put_char:
         read_msg db 'Ready to read hard disk...'
                  db 0
 
-        jmup_far dw 0x0000, 0x0000
+        jmup_far dw 0x0004, 0x0000
 
 times 510-($-$$) db 0
                  db 0x55,0xaa
