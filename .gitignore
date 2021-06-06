@@ -6,5 +6,4 @@
 
 .DS_Store
 
-bochsout.txt
-bochsrc.txt
+./bochsout.txt

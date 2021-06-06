@@ -32,7 +32,7 @@
 00000000000i[     ]   SB16 support: no
 00000000000i[     ]   USB support: yes
 00000000000i[     ]   VGA extension support: vbe 
-00000000000i[MEM0 ] allocated memory at 0x7f84674db000. after alignment, vector=0x7f84674db000
+00000000000i[MEM0 ] allocated memory at 0x7f990cdbc000. after alignment, vector=0x7f990cdbc000
 00000000000i[MEM0 ] 32.00MB
 00000000000i[MEM0 ] mem block size = 0x00100000, blocks=32
 00000000000i[MEM0 ] rom at 0xfffe0000/131072 ('/Users/LesPark/tools/bochs/share/bochs/BIOS-bochs-latest')
@@ -42,7 +42,7 @@
 00000000000i[PCI  ] PIIX3 PCI-to-ISA bridge present at device 1, function 0
 00000000000i[     ] init_dev of 'cmos' plugin device by virtual method
 00000000000i[CMOS ] Using local time for initial clock
-00000000000i[CMOS ] Setting initial clock to: Wed Jun  2 19:28:55 2021 (time0=1622633335)
+00000000000i[CMOS ] Setting initial clock to: Sun Jun  6 17:37:48 2021 (time0=1622972268)
 00000000000i[     ] init_dev of 'dma' plugin device by virtual method
 00000000000i[DMA  ] channel 4 used by cascade
 00000000000i[     ] init_dev of 'pic' plugin device by virtual method
@@ -63,8 +63,8 @@
 00000000000i[     ] init_dev of 'keyboard' plugin device by virtual method
 00000000000i[KBD  ] will paste characters every 1000 keyboard ticks
 00000000000i[     ] init_dev of 'harddrv' plugin device by virtual method
-00000000000i[HD   ] HD on ata0-0: '/Users/LesPark/Documents/github/asm-x86/jauzzz/loader/loader.vhd', 'vpc' mode
-00000000000i[IMG  ] 'vpc' disk image opened: path is '/Users/LesPark/Documents/github/asm-x86/jauzzz/loader/loader.vhd'
+00000000000i[HD   ] HD on ata0-0: '/Users/LesPark/Documents/github/asm-x86/jauzzz/interrupt/interrupt.vhd', 'vpc' mode
+00000000000i[IMG  ] 'vpc' disk image opened: path is '/Users/LesPark/Documents/github/asm-x86/jauzzz/interrupt/interrupt.vhd'
 00000000000i[HD   ] ata0-0: image geometry: CHS=147/4/17
 00000000000i[HD   ] translation on ata0-0 set to 'none'
 00000000000i[HD   ] Using boot sequence disk, none, none
@@ -181,23 +181,23 @@
 00001872170i[BIOS ] ata0-0: PCHS=147/4/17 translation=none LCHS=147/4/17
 00005749344i[BIOS ] IDE time out
 00017824972i[BIOS ] Booting from 0000:7c00
-00078404000p[SDL  ] >>PANIC<< User requested shutdown.
-00078404000i[CPU0 ] CPU is in real mode (active)
-00078404000i[CPU0 ] CS.mode = 16 bit
-00078404000i[CPU0 ] SS.mode = 16 bit
-00078404000i[CPU0 ] EFER   = 0x00000000
-00078404000i[CPU0 ] | EAX=0000b800  EBX=00000bf8  ECX=00090000  EDX=000000a0
-00078404000i[CPU0 ] | ESP=00000000  EBP=00000000  ESI=000e0064  EDI=00000000
-00078404000i[CPU0 ] | IOPL=0 id vip vif ac vm rf nt of df if tf sf zf af pf cf
-00078404000i[CPU0 ] | SEG sltr(index|ti|rpl)     base    limit G D
-00078404000i[CPU0 ] |  CS:1000( 0004| 0|  0) 00010000 0000ffff 0 0
-00078404000i[CPU0 ] |  DS:1000( 0005| 0|  0) 00010000 0000ffff 0 0
-00078404000i[CPU0 ] |  SS:0000( 0005| 0|  0) 00000000 0000ffff 0 0
-00078404000i[CPU0 ] |  ES:b800( 0005| 0|  0) 000b8000 0000ffff 0 0
-00078404000i[CPU0 ] |  FS:0000( 0005| 0|  0) 00000000 0000ffff 0 0
-00078404000i[CPU0 ] |  GS:0000( 0005| 0|  0) 00000000 0000ffff 0 0
-00078404000i[CPU0 ] | EIP=0000009c (0000009c)
-00078404000i[CPU0 ] | CR0=0x60000010 CR2=0x00000000
-00078404000i[CPU0 ] | CR3=0x00000000 CR4=0x00000000
-00078404000i[CMOS ] Last time is 1622633354 (Wed Jun  2 19:29:14 2021)
-00078404000i[CTRL ] quit_sim called with exit code 1
+00208804000p[SDL  ] >>PANIC<< User requested shutdown.
+00208804000i[CPU0 ] CPU is in real mode (halted)
+00208804000i[CPU0 ] CS.mode = 16 bit
+00208804000i[CPU0 ] SS.mode = 16 bit
+00208804000i[CPU0 ] EFER   = 0x00000000
+00208804000i[CPU0 ] | EAX=0000108e  EBX=0000004d  ECX=00090000  EDX=00000000
+00208804000i[CPU0 ] | ESP=00000100  EBP=00000000  ESI=000e0065  EDI=00000000
+00208804000i[CPU0 ] | IOPL=0 id vip vif ac vm rf nt of df IF tf sf ZF af PF cf
+00208804000i[CPU0 ] | SEG sltr(index|ti|rpl)     base    limit G D
+00208804000i[CPU0 ] |  CS:1002( 0004| 0|  0) 00010020 0000ffff 0 0
+00208804000i[CPU0 ] |  DS:101d( 0005| 0|  0) 000101d0 0000ffff 0 0
+00208804000i[CPU0 ] |  SS:1022( 0005| 0|  0) 00010220 0000ffff 0 0
+00208804000i[CPU0 ] |  ES:1000( 0005| 0|  0) 00010000 0000ffff 0 0
+00208804000i[CPU0 ] |  FS:0000( 0005| 0|  0) 00000000 0000ffff 0 0
+00208804000i[CPU0 ] |  GS:0000( 0005| 0|  0) 00000000 0000ffff 0 0
+00208804000i[CPU0 ] | EIP=000000e5 (000000e5)
+00208804000i[CPU0 ] | CR0=0x60000010 CR2=0x00000000
+00208804000i[CPU0 ] | CR3=0x00000000 CR4=0x00000000
+00208804000i[CMOS ] Last time is 1622972320 (Sun Jun  6 17:38:40 2021)
+00208804000i[CTRL ] quit_sim called with exit code 1
