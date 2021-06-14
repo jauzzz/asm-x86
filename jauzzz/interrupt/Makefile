@@ -13,4 +13,4 @@ all:$(ASMFILE)
 clean:
 	rm *.vhd
 	rm *.bin
-	rm *.
+	rm *.img
